@@ -513,7 +513,6 @@ function render(){
     case'home':renderHome(scr,title);break;
     case'lessons':renderLessons(scr,title);break;
     case'textbookLessons':renderTextbookLessons(scr,title);break;
-        case'myStories':renderMyStories(scr,title);break;
     case'mathPractice':_renderMathPractice(scr,title);break;
     case'auth':renderAuth(scr,title);break;
     case'card':case'wrongPractice':case'test':renderCard(scr,title);break;
@@ -547,7 +546,6 @@ function _renderLiteracyHome(){
     '<div class="home-btns">'+
     '<button class="btn-main btn-learn" onclick="navigate(\'textbookLessons\')"><span class="ico">✏️</span><span class="txt">小班复习<small>小班汉字复习</small></span></button>'+
     '<button class="btn-main btn-wrong" onclick="navigate(\'wrong\')"><span class="ico">🔁</span><span class="txt">复习错字<small>'+wc+'个字需要复习</small></span></button>'+
-        '<button class="btn-main btn-my-stories" onclick="navigate(\'myStories\')"><span class="ico">📚</span><span class="txt">奕辰的故事书<small>用已学的字写的小故事</small></span></button>'+
     '</div></div>';
 }
 
@@ -775,16 +773,56 @@ function markCard(ok){
 // ── 数学 Tab ──
 var _mathMode='',_mathProblems=[],_mathIdx=0,_mathCorrect=0,_mathTotal=0,_mathStreak=0;
 function _renderMathHome(){
+  var nums=[
+    {n:1,zh:'一',en:'one',emoji:'🌟'},
+    {n:2,zh:'二',en:'two',emoji:'👀'},
+    {n:3,zh:'三',en:'three',emoji:'🍎'},
+    {n:4,zh:'四',en:'four',emoji:'🐾'},
+    {n:5,zh:'五',en:'five',emoji:'🖐️'},
+    {n:6,zh:'六',en:'six',emoji:'🎲'},
+    {n:7,zh:'七',en:'seven',emoji:'🌈'},
+    {n:8,zh:'八',en:'eight',emoji:'🐙'},
+    {n:9,zh:'九',en:'nine',emoji:'🎈'},
+    {n:10,zh:'十',en:'ten',emoji:'🔟'},
+    {n:11,zh:'十一',en:'eleven',emoji:'⚽'},
+    {n:12,zh:'十二',en:'twelve',emoji:'🕛'},
+    {n:13,zh:'十三',en:'thirteen',emoji:'🎂'},
+    {n:14,zh:'十四',en:'fourteen',emoji:'🌙'},
+    {n:15,zh:'十五',en:'fifteen',emoji:'🍬'},
+    {n:16,zh:'十六',en:'sixteen',emoji:'🦋'},
+    {n:17,zh:'十七',en:'seventeen',emoji:'🌻'},
+    {n:18,zh:'十八',en:'eighteen',emoji:'🎵'},
+    {n:19,zh:'十九',en:'nineteen',emoji:'🚀'},
+    {n:20,zh:'二十',en:'twenty',emoji:'🎉'}
+  ];
   var h='<div class="home-hero anim-in">';
-  h+='<div class="home-emoji">🔢</div><div class="home-title" style="font-size:22px">数学练习场</div>';
-  h+='<div class="home-sub">动脑筋 · 算得快</div></div>';
-  h+='<div class="home-btns">';
-  h+='<button class="btn-main btn-math-add" onclick="_startMath(\'add\')"><span class="ico">➕</span><span class="txt">20以内加法<small>两数相加，结果不超过20</small></span></button>';
-  h+='<button class="btn-main btn-math-add" onclick="_startMath(\'sub\')"><span class="ico">➖</span><span class="txt">20以内减法<small>两数相减，被减数不超过20</small></span></button>';
-  h+='<button class="btn-main btn-math-mix" onclick="_startMath(\'mix\')"><span class="ico">🔀</span><span class="txt">加减混合<small>加法和减法随机出现</small></span></button>';
-  h+='<button class="btn-main btn-math-chain" onclick="_startMath(\'chain\')"><span class="ico">🔗</span><span class="txt">滚法计算<small>连续加减，越滚越大</small></span></button>';
+  h+='<div class="home-emoji">🔢</div><div class="home-title" style="font-size:22px">认识数字</div>';
+  h+='<div class="home-sub">1-20 · 点击卡片听读音</div></div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+  nums.forEach(function(item){
+    var dots='';for(var i=0;i<item.n&&i<20;i++) dots+='<span style="display:inline-block;width:8px;height:8px;background:#667eea;border-radius:50%;margin:1px"></span>';
+    h+='<div class="anim-in" onclick="_speakNum(\''+item.zh+'\',\''+item.en+'\')" style="background:#fff;border-radius:16px;padding:14px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.06);cursor:pointer;transition:all .2s">';
+    h+='<div style="font-size:32px;font-weight:900;color:#667eea">'+item.n+'</div>';
+    h+='<div style="font-size:18px;font-weight:700;color:#2d3748;margin:4px 0">'+item.zh+'</div>';
+    h+='<div style="font-size:12px;color:#a0aec0">'+item.en+'</div>';
+    h+='<div style="font-size:20px;margin:6px 0">'+item.emoji+'</div>';
+    h+='<div style="line-height:1.2">'+dots+'</div>';
+    h+='<div style="font-size:10px;color:#cbd5e0;margin-top:4px">🔊 点击听</div>';
+    h+='</div>';
+  });
   h+='</div>';
   return h;
+}
+function _speakNum(zh,en){
+  if('speechSynthesis' in window){
+    window.speechSynthesis.cancel();
+    var u1=new SpeechSynthesisUtterance(zh);
+    u1.lang='zh-CN';u1.rate=0.7;u1.pitch=1.1;
+    var u2=new SpeechSynthesisUtterance(en);
+    u2.lang='en-US';u2.rate=0.7;u2.pitch=1.0;
+    window.speechSynthesis.speak(u1);
+    window.speechSynthesis.speak(u2);
+  }
 }
 function _genMathProblem(mode){
   var a,b,op,ans,expr;
