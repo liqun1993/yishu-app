@@ -444,6 +444,7 @@ const LESSONS=[
 // ═══════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════
+let _sb=null, _sbUser=null;
 const STORE_KEY='yishu_app_v1';
 let state=loadState();
 function loadState(){try{const s=JSON.parse(localStorage.getItem(STORE_KEY));if(s&&s.version===2){if(!s.started)s.started={};return s}}catch(e){}return{version:2,wrong:{},learned:{},started:{}}}
@@ -515,7 +516,7 @@ function render(){
     case'textbookLessons':renderTextbookLessons(scr,title);break;
         case'myStories':renderMyStories(scr,title);break;
     case'mathPractice':_renderMathPractice(scr,title);break;
-    case'auth':renderAuth(scr,title);break;
+    case'auth':scr.innerHTML='<div style="text-align:center;padding:40px"><div style="font-size:48px">🔒</div><div style="font-size:16px;color:#718096;margin-top:12px">暂不支持账号登录</div></div>';title.textContent='账号';break;
     case'card':case'wrongPractice':case'test':renderCard(scr,title);break;
     case'result':case'wrongResult':renderResult(scr,title,badge);break;
     case'wrong':renderWrong(scr,title,badge);break;
