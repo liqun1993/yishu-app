@@ -450,7 +450,6 @@ function loadState(){try{const s=JSON.parse(localStorage.getItem(STORE_KEY));if(
 function saveState(){localStorage.setItem(STORE_KEY,JSON.stringify(state))}
 
 let sess=null,screen='home',screenStack=[];
-let zhVoice=null;
 
 // ── Session persistence (断点续学) ──
 const SESS_KEY='yishu_sess_v1';
@@ -459,27 +458,69 @@ function restoreSess(lessonId){try{const d=JSON.parse(localStorage.getItem(SESS_
 function clearSess(){try{localStorage.removeItem(SESS_KEY)}catch(e){}}
 
 // ═══════════════════════════════════════════
-// SPEECH
+// SPEECH (v2 — 兼容华为/Android浏览器)
 // ═══════════════════════════════════════════
+var _zhVoice=null,_voiceReady=false,_hasSpeechAPI=typeof window!=='undefined'&&'speechSynthesis' in window;
 function initVoice(){
-  if(!window.speechSynthesis)return;
-  const pick=()=>{
-    const voices=speechSynthesis.getVoices();
-    zhVoice=voices.find(v=>v.lang.startsWith('zh')&&v.localService)||voices.find(v=>v.lang.startsWith('zh'))||null;
+  if(!_hasSpeechAPI)return;
+  var pick=function(){
+    var voices=speechSynthesis.getVoices();
+    _zhVoice=voices.find(function(v){return v.lang.startsWith('zh')&&v.localService})
+      ||voices.find(function(v){return v.lang.startsWith('zh')})||null;
+    _voiceReady=true;
   };
   pick();
   speechSynthesis.onvoiceschanged=pick;
+  // 修复Android Chrome 15秒后暂停的bug
+  setInterval(function(){
+    if(speechSynthesis.speaking||speechSynthesis.pending){speechSynthesis.pause();speechSynthesis.resume()}
+  },10000);
 }
 function speak(text){
-  if(!window.speechSynthesis)return;
-  speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang='zh-CN';u.rate=0.75;u.pitch=1.1;
-  if(zhVoice)u.voice=zhVoice;
-  speechSynthesis.speak(u);
-  // visual feedback
-  const sp=document.querySelector('.fc-speaker,.speaking');
-  if(sp){sp.classList.add('speaking');setTimeout(()=>sp.classList.remove('speaking'),600)}
+  if(_hasSpeechAPI){
+    speechSynthesis.cancel();
+    setTimeout(function(){
+      var u=new SpeechSynthesisUtterance(text);
+      u.lang='zh-CN';u.rate=0.75;u.pitch=1.1;
+      if(_zhVoice)u.voice=_zhVoice;
+      var started=false;
+      u.onstart=function(){started=true};
+      u.onerror=function(){if(!started)_edgeSpeak(text)};
+      speechSynthesis.speak(u);
+      setTimeout(function(){if(!started&&speechSynthesis.pending)speechSynthesis.resume()},300);
+      setTimeout(function(){if(!started)_edgeSpeak(text)},1500);
+    },60);
+  }else{_edgeSpeak(text)}
+  var sp=document.querySelector('.fc-speaker,.speaking');
+  if(sp){sp.classList.add('speaking');setTimeout(function(){sp.classList.remove('speaking')},600)}
+}
+function _edgeSpeak(text,lang){
+  try{
+    var a=new Audio('https://tts.edgeapi.net/zh-CN-XiaoxiaoNeural.mp3?text='+encodeURIComponent(text)+'&lang='+(lang||'zh-CN'));
+    a.play().catch(function(){});
+  }catch(e){}
+  if(typeof _showAudioTip==='function')_showAudioTip();
+}
+function _showAudioTip(){
+  if(document.querySelector('.audio-tip'))return;
+  var d=document.createElement('div');d.className='audio-tip';
+  d.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#ff9800;color:#fff;padding:10px 20px;border-radius:20px;z-index:9999;font-size:14px;box-shadow:0 2px 12px rgba(0,0,0,.15)';
+  d.textContent='当前浏览器语音功能受限，建议用Chrome打开';
+  document.body.appendChild(d);setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d)},3000);
+}
+function unlockMobileAudio(){
+  var unlock=function(){
+    if(_hasSpeechAPI){
+      var u=new SpeechSynthesisUtterance('');u.volume=0;speechSynthesis.speak(u);
+    }
+    try{var a=new Audio('data:audio/wav;base64,UklGRjIAAABXQVZFZm10IBIAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==');a.volume=0;a.play().catch(function(){});}catch(e){}
+    document.removeEventListener('touchstart',unlock);
+    document.removeEventListener('touchend',unlock);
+    document.removeEventListener('click',unlock);
+  };
+  document.addEventListener('touchstart',unlock,{once:true});
+  document.addEventListener('touchend',unlock,{once:true});
+  document.addEventListener('click',unlock,{once:true});
 }
 
 // ═══════════════════════════════════════════
@@ -814,14 +855,22 @@ function _renderMathHome(){
   return h;
 }
 function _speakNum(zh,en){
-  if('speechSynthesis' in window){
+  if(_hasSpeechAPI){
     window.speechSynthesis.cancel();
-    var u1=new SpeechSynthesisUtterance(zh);
-    u1.lang='zh-CN';u1.rate=0.7;u1.pitch=1.1;
-    var u2=new SpeechSynthesisUtterance(en);
-    u2.lang='en-US';u2.rate=0.7;u2.pitch=1.0;
-    window.speechSynthesis.speak(u1);
-    window.speechSynthesis.speak(u2);
+    setTimeout(function(){
+      var u1=new SpeechSynthesisUtterance(zh);
+      u1.lang='zh-CN';u1.rate=0.7;u1.pitch=1.1;
+      var u2=new SpeechSynthesisUtterance(en);
+      u2.lang='en-US';u2.rate=0.7;u2.pitch=1.0;
+      var started=false;u1.onstart=function(){started=true};
+      u1.onerror=function(){if(!started){_edgeSpeak(zh);setTimeout(function(){_edgeSpeak(en,'en-US')},1200)}};
+      window.speechSynthesis.speak(u1);
+      window.speechSynthesis.speak(u2);
+      setTimeout(function(){if(!started)_edgeSpeak(zh)},1500);
+    },60);
+  }else{
+    _edgeSpeak(zh);
+    setTimeout(function(){_edgeSpeak(en,'en-US')},1200);
   }
 }
 function _genMathProblem(mode){
@@ -967,12 +1016,17 @@ function _renderEnglishHome(){
   return h;
 }
 function _speakEng(text){
-  if('speechSynthesis' in window){
+  if(_hasSpeechAPI){
     window.speechSynthesis.cancel();
-    var u=new SpeechSynthesisUtterance(text);
-    u.lang='en-US';u.rate=0.8;u.pitch=1.0;
-    window.speechSynthesis.speak(u);
-  }
+    setTimeout(function(){
+      var u=new SpeechSynthesisUtterance(text);
+      u.lang='en-US';u.rate=0.8;u.pitch=1.0;
+      var started=false;u.onstart=function(){started=true};
+      u.onerror=function(){if(!started)_edgeSpeak(text,'en-US')};
+      window.speechSynthesis.speak(u);
+      setTimeout(function(){if(!started)_edgeSpeak(text,'en-US')},1500);
+    },60);
+  }else{_edgeSpeak(text,'en-US')}
 }
 
 // ── 奕辰的故事书 ──
@@ -1554,6 +1608,7 @@ migrateStarted();
 
 // ── INIT ──
 initVoice();
+unlockMobileAudio();
 render();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
